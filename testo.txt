@@ -1,0 +1,187 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <map>
+#include <iomanip>
+
+struct Paese {
+    std::string nome;
+    double totaleGDP = 0.0;
+    int anni = 0;
+};
+
+bool numeroValido(const std::string& s) {
+    std::istringstream ss(s);
+    double d;
+    return (ss >> d) && ss.eof();
+}
+
+bool leggiRigaCSV(const std::string& riga, std::string& nome, double& valore) {
+    std::istringstream ss(riga);
+    std::string codice, anno, valoreStr;
+
+    std::getline(ss, nome, ',');
+    std::getline(ss, codice, ',');
+    std::getline(ss, anno, ',');
+    std::getline(ss, valoreStr, ',');
+
+    if (nome.empty() || !numeroValido(valoreStr)) {
+        return false;
+    }
+
+    valore = std::stod(valoreStr);
+    return true;
+}
+
+void stampaRigheTotali(int righe) {
+    std::cout << "Linee totali lette: " << righe << "\n";
+}
+
+void stampaNumeroPaesi(const std::map<std::string, Paese>& paesi) {
+    std::cout << "Numero paesi trovati: " << paesi.size() << "\n";
+}
+
+void stampaGDPMedio(const std::map<std::string, Paese>& paesi) {
+    double somma = 0.0;
+    for (std::map<std::string, Paese>::const_iterator it = paesi.begin(); it != paesi.end(); ++it) {
+        somma += it->second.totaleGDP;
+    }
+    if (!paesi.empty()) {
+        double media = somma / paesi.size();
+        std::cout << "GDP medio per paese: " << std::fixed << std::setprecision(2) << media << "\n";
+    }
+}
+
+void stampaGDPAnnui(const std::map<std::string, Paese>& paesi) {
+    for (std::map<std::string, Paese>::const_iterator it = paesi.begin(); it != paesi.end(); ++it) {
+        const Paese& p = it->second;
+        double mediaAnnua = p.anni > 0 ? p.totaleGDP / p.anni : 0.0;
+        std::cout << "Paese: " << p.nome
+                  << ", Media annua GDP: " << std::fixed << std::setprecision(2) << mediaAnnua << "\n";
+    }
+}
+
+void stampaTutteLeInfo(const std::map<std::string, Paese>& paesi, int righeLette) {
+    stampaRigheTotali(righeLette);
+    stampaNumeroPaesi(paesi);
+    std::cout << "\nDati per paese:\n";
+    for (std::map<std::string, Paese>::const_iterator it = paesi.begin(); it != paesi.end(); ++it) {
+        const Paese& p = it->second;
+        std::cout << "Paese: " << p.nome
+                  << ", GDP Totale: " << std::fixed << std::setprecision(2) << p.totaleGDP
+                  << ", Anni: " << p.anni << "\n";
+    }
+    stampaGDPMedio(paesi);
+    std::cout << "\n";
+}
+
+void mostraRighePaese(const std::map<std::string, Paese>& paesi, const std::string& nomeFile) {
+    std::string nomeRichiesto;
+        std::cout << "\nPaesi disponibili:\n";
+    for (const auto& entry : paesi) {
+        std::cout << " - " << entry.first << "\n";
+    }
+    std::cout << "Inserisci il nome del paese (esattamente come appare): ";
+    std::cin.ignore();
+    std::getline(std::cin, nomeRichiesto);
+
+    if (paesi.find(nomeRichiesto) == paesi.end()) {
+        std::cout << "Paese non trovato.\n";
+        return;
+    }
+
+    std::ifstream file(nomeFile.c_str());
+    if (!file) {
+        std::cerr << "Errore riapertura file.\n";
+        return;
+    }
+
+    std::string riga;
+    std::getline(file, riga); // Salta intestazione
+
+    std::cout << "\nRighe per il paese \"" << nomeRichiesto << "\":\n";
+
+    while (std::getline(file, riga)) {
+        std::istringstream ss(riga);
+        std::string nome, codice, anno, valore;
+        std::getline(ss, nome, ',');
+        std::getline(ss, codice, ',');
+        std::getline(ss, anno, ',');
+        std::getline(ss, valore, ',');
+
+        if (nome == nomeRichiesto) {
+            std::cout << "Anno: " << anno << ", Codice: " << codice
+                      << ", Valore GDP: " << valore << "\n";
+        }
+    }
+}
+
+int main() {
+    const std::string nomeFile = "ok-gdp.csv";
+    std::ifstream file(nomeFile.c_str());
+    if (!file) {
+        std::cerr << "Errore apertura file.\n";
+        return 1;
+    }
+
+    std::map<std::string, Paese> paesi;
+    std::string riga;
+    int righeLette = 0;
+
+    std::getline(file, riga); // salta intestazione
+
+    while (std::getline(file, riga)) {
+        righeLette++;
+
+        std::string nome;
+        double valore;
+        if (!leggiRigaCSV(riga, nome, valore)) continue;
+
+        Paese& p = paesi[nome];
+        p.nome = nome;
+        p.totaleGDP += valore;
+        p.anni++;
+    }
+
+    int scelta;
+    do {
+        std::cout << "\n--- MENU ---\n";
+        std::cout << "1. Righe totali\n";
+        std::cout << "2. Numero paesi trovati\n";
+        std::cout << "3. GDP medio per paese\n";
+        std::cout << "4. GDP annuo per ogni paese\n";
+        std::cout << "5. Tutte le informazioni\n";
+        std::cout << "6. Visualizza tutte le righe per un paese\n";
+        std::cout << "0. Esci\n";
+        std::cout << "Scelta: ";
+        std::cin >> scelta;
+
+        switch (scelta) {
+            case 1:
+                stampaRigheTotali(righeLette);
+                break;
+            case 2:
+                stampaNumeroPaesi(paesi);
+                break;
+            case 3:
+                stampaGDPMedio(paesi);
+                break;
+            case 4:
+                stampaGDPAnnui(paesi);
+                break;
+            case 5:
+                stampaTutteLeInfo(paesi, righeLette);
+                break;
+            case 6:
+                mostraRighePaese(paesi, nomeFile);
+                break;
+            case 0:
+                std::cout << "Uscita.\n";
+                break;
+            default:
+                std::cout << "Scelta non valida.\n";
+        }
+    } while (scelta != 0);
+    return 0;
+}
